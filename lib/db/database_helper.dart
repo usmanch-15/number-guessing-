@@ -1,76 +1,84 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import '../models/game_result.dart';
+import '../models/game_model.dart';
 
 class DatabaseHelper {
-  static const _databaseName = 'number_game.db';
-  static const _databaseVersion = 1;
-  static const table = 'game_results';
-
-  static const columnId = 'id';
-  static const columnNumber = 'number';
-  static const columnAttempts = 'attempts';
-  static const columnDate = 'date';
-
-  static final DatabaseHelper _instance = DatabaseHelper._internal();
-
-  factory DatabaseHelper() {
-    return _instance;
-  }
-
-  DatabaseHelper._internal();
-
+  static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
 
+  DatabaseHelper._init();
+
   Future<Database> get database async {
-    _database ??= await _initDatabase();
+    if (_database != null) return _database!;
+    _database = await _initDB('guessing_game.db');
     return _database!;
   }
 
-  Future<Database> _initDatabase() async {
-    String path = join(await getDatabasesPath(), _databaseName);
+  Future<Database> _initDB(String filePath) async {
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, filePath);
+
     return await openDatabase(
       path,
-      version: _databaseVersion,
-      onCreate: _onCreate,
+      version: 1,
+      onCreate: _createDB,
     );
   }
 
-  Future<void> _onCreate(Database db, int version) async {
+  Future<void> _createDB(Database db, int version) async {
     await db.execute('''
-      CREATE TABLE $table (
-        $columnId INTEGER PRIMARY KEY AUTOINCREMENT,
-        $columnNumber INTEGER NOT NULL,
-        $columnAttempts INTEGER NOT NULL,
-        $columnDate TEXT NOT NULL
+      CREATE TABLE games(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        targetNumber INTEGER NOT NULL,
+        attempts INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        isWin INTEGER NOT NULL,
+        maxNumber INTEGER NOT NULL,
+        minNumber INTEGER NOT NULL
       )
     ''');
   }
 
-  Future<int> insertGameResult(GameResult result) async {
-    Database db = await database;
-    return await db.insert(table, result.toMap());
+  Future<void> initDatabase() async {
+    await database;
   }
 
-  Future<List<GameResult>> getAllGameResults() async {
-    Database db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(table);
-    return List.generate(maps.length, (i) {
-      return GameResult.fromMap(maps[i]);
-    });
+  Future<int> insertGame(GameModel game) async {
+    final db = await instance.database;
+    return await db.insert('games', game.toMap());
   }
 
-  Future<int> deleteGameResult(int id) async {
-    Database db = await database;
-    return await db.delete(
-      table,
-      where: '$columnId = ?',
-      whereArgs: [id],
-    );
+  Future<List<GameModel>> getAllGames() async {
+    final db = await instance.database;
+    final result = await db.query('games', orderBy: 'date DESC');
+    return result.map((json) => GameModel.fromMap(json)).toList();
   }
 
-  Future<void> deleteAllGameResults() async {
-    Database db = await database;
-    await db.delete(table);
+  Future<int> deleteGame(int id) async {
+    final db = await instance.database;
+    return await db.delete('games', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> clearAllGames() async {
+    final db = await instance.database;
+    return await db.delete('games');
+  }
+
+  Future<double> getAverageAttempts() async {
+    final db = await instance.database;
+    final result = await db.rawQuery('SELECT AVG(attempts) as avg FROM games WHERE isWin = 1');
+    return result.first['avg'] as double? ?? 0.0;
+  }
+
+  Future<int> getTotalGamesPlayed() async {
+    final db = await instance.database;
+    final result = await db.rawQuery('SELECT COUNT(*) as count FROM games');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<int> getWinCount() async {
+    final db = await instance.database;
+    final result = await db.rawQuery('SELECT COUNT(*) as count FROM games WHERE isWin = 1');
+    return Sqflite.firstIntValue(result) ?? 0;
   }
 }

@@ -1,71 +1,152 @@
 import 'package:flutter/material.dart';
-import '../db/database_helper.dart';
-import '../models/game_result.dart';
+import 'home_screen.dart';
 
-class ResultScreen extends StatefulWidget {
-  const ResultScreen({Key? key}) : super(key: key);
+class ResultScreen extends StatelessWidget {
+  final int attempts;
+  final int targetNumber;
+  final int maxNumber;
+  final bool isWin;
 
-  @override
-  State<ResultScreen> createState() => _ResultScreenState();
-}
-
-class _ResultScreenState extends State<ResultScreen> {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
-  late Future<List<GameResult>> _gameResults;
-
-  @override
-  void initState() {
-    super.initState();
-    _gameResults = _dbHelper.getAllGameResults();
-  }
+  const ResultScreen({
+    super.key,
+    required this.attempts,
+    required this.targetNumber,
+    required this.maxNumber,
+    required this.isWin,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Game Results'),
-        centerTitle: true,
-      ),
-      body: FutureBuilder<List<GameResult>>(
-        future: _gameResults,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No game results yet'));
-          } else {
-            List<GameResult> results = snapshot.data!;
-            return ListView.builder(
-              itemCount: results.length,
-              itemBuilder: (context, index) {
-                GameResult result = results[index];
-                return Card(
-                  margin: const EdgeInsets.all(8),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      child: Text('${index + 1}'),
-                    ),
-                    title: Text('Number: ${result.number}'),
-                    subtitle: Text(
-                      'Attempts: ${result.attempts} | Date: ${result.date.substring(0, 10)}',
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () async {
-                        await _dbHelper.deleteGameResult(result.id!);
-                        setState(() {
-                          _gameResults = _dbHelper.getAllGameResults();
-                        });
-                      },
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: isWin
+                ? [Colors.green.shade400, Colors.green.shade800]
+                : [Colors.red.shade400, Colors.red.shade800],
+          ),
+        ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  isWin ? Icons.emoji_events : Icons.sentiment_very_dissatisfied,
+                  size: 120,
+                  color: Colors.white,
+                ),
+                const SizedBox(height: 30),
+                Text(
+                  isWin ? 'VICTORY!' : 'GAME OVER',
+                  style: const TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Card(
+                  elevation: 8,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(25),
+                    child: Column(
+                      children: [
+                        Text(
+                          'The number was',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          '$targetNumber',
+                          style: const TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                        const Divider(height: 30),
+                        Text(
+                          'You took',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          '$attempts attempts',
+                          style: const TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                );
-              },
-            );
-          }
-        },
+                ),
+                const SizedBox(height: 40),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(builder: (context) => const HomeScreen()),
+                                (route) => false,
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.blue,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          'Home',
+                          style: TextStyle(fontSize: 18),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.green,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          'Play Again',
+                          style: TextStyle(fontSize: 18),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

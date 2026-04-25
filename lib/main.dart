@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'db/database_helper.dart';
 import 'screens/home_screen.dart';
 
-/// Main entry point of the Number Guessing Game application
-void main() {
-  runApp(const NumberGuessingGameApp());
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await DatabaseHelper.instance.initDatabase();
+  runApp(const NumberGuessingGame());
 }
 
-class NumberGuessingGameApp extends StatelessWidget {
-  const NumberGuessingGameApp({Key? key}) : super(key: key);
+class NumberGuessingGame extends StatelessWidget {
+  const NumberGuessingGame({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +19,7 @@ class NumberGuessingGameApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        useMaterial3: true,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: const HomeScreen(),
     );

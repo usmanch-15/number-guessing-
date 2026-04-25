@@ -1,193 +1,229 @@
 import 'package:flutter/material.dart';
-import 'dart:math';
 import '../db/database_helper.dart';
-import '../models/game_result.dart';
-import '../widgets/custom_button.dart';
-import 'result_screen.dart';
+
+import 'guess_screen.dart';
 import 'history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late int randomNumber;
-  late int attempts;
-  late TextEditingController _guessController;
-  String feedback = '';
-  bool gameOver = false;
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  int _selectedRange = 100;
+  int _totalGames = 0;
+  int _winCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _guessController = TextEditingController();
-    _initializeGame();
+    _loadStats();
   }
 
-  void _initializeGame() {
-    randomNumber = Random().nextInt(100) + 1;
-    attempts = 0;
-    feedback = '';
-    gameOver = false;
-    _guessController.clear();
-  }
-
-  void _checkGuess() {
-    if (_guessController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a number')),
-      );
-      return;
-    }
-
-    int guess = int.parse(_guessController.text);
-    attempts++;
-
-    if (guess == randomNumber) {
-      setState(() {
-        feedback = 'Correct! You won!';
-        gameOver = true;
-      });
-      _saveGameResult();
-      _showGameOverDialog();
-    } else if (guess > randomNumber) {
-      setState(() {
-        feedback = 'Too High! Try again.';
-      });
-    } else {
-      setState(() {
-        feedback = 'Too Low! Try again.';
-      });
-    }
-
-    _guessController.clear();
-  }
-
-  void _saveGameResult() async {
-    GameResult result = GameResult(
-      number: randomNumber,
-      attempts: attempts,
-      date: DateTime.now().toString(),
-    );
-    await _dbHelper.insertGameResult(result);
-  }
-
-  void _showGameOverDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Game Over!'),
-        content: Text('You guessed the number in $attempts attempts!'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                _initializeGame();
-              });
-            },
-            child: const Text('Play Again'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ResultScreen()),
-              );
-            },
-            child: const Text('View History'),
-          ),
-        ],
-      ),
-    );
+  Future<void> _loadStats() async {
+    final totalGames = await DatabaseHelper.instance.getTotalGamesPlayed();
+    final winCount = await DatabaseHelper.instance.getWinCount();
+    setState(() {
+      _totalGames = totalGames;
+      _winCount = winCount;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Number Guessing Game'),
+        title: const Text(
+          'Number Guessing Game',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
+        elevation: 2,
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const HistoryScreen()),
               );
+              _loadStats();
             },
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const Text(
-              'Guess a number between 1 and 100',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _guessController,
-              keyboardType: TextInputType.number,
-              enabled: !gameOver,
-              decoration: InputDecoration(
-                hintText: 'Enter your guess',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.blue.shade50,
+              Colors.white,
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Card(
+                elevation: 8,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              ),
-            ),
-            const SizedBox(height: 20),
-            CustomButton(
-              label: 'Guess',
-              onPressed: gameOver ? null : _checkGuess,
-            ),
-            const SizedBox(height: 20),
-            Text(
-              feedback,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: gameOver ? Colors.green : Colors.orange,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Attempts: $attempts',
-              style: const TextStyle(fontSize: 16),
-            ),
-            if (gameOver)
-              Padding(
-                padding: const EdgeInsets.only(top: 30),
-                child: CustomButton(
-                  label: 'New Game',
-                  onPressed: () {
-                    setState(() {
-                      _initializeGame();
-                    });
-                  },
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: LinearGradient(
+                      colors: [Colors.blue.shade700, Colors.blue.shade900],
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Game Statistics',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildStatCard('Total Games', _totalGames.toString(), Icons.games),
+                          _buildStatCard('Wins', _winCount.toString(), Icons.emoji_events),
+                          _buildStatCard('Win Rate', _totalGames > 0 ? '${((_winCount / _totalGames) * 100).toInt()}%' : '0%', Icons.percent),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-          ],
+              const SizedBox(height: 40),
+              Card(
+                elevation: 5,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(25),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Select Difficulty',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildRangeButton(50, 'Easy (1-50)'),
+                      const SizedBox(height: 10),
+                      _buildRangeButton(100, 'Medium (1-100)'),
+                      const SizedBox(height: 10),
+                      _buildRangeButton(200, 'Hard (1-200)'),
+                      const SizedBox(height: 10),
+                      _buildRangeButton(500, 'Expert (1-500)'),
+                      const SizedBox(height: 30),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => GuessScreen(
+                                maxNumber: _selectedRange,
+                              ),
+                            ),
+                          ).then((_) => _loadStats());
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 40,
+                            vertical: 15,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        child: const Text('Start Game'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  @override
-  void dispose() {
-    _guessController.dispose();
-    super.dispose();
+  Widget _buildStatCard(String title, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: Colors.white, size: 30),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.white70,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRangeButton(int range, String label) {
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedRange = range;
+        });
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: _selectedRange == range ? Colors.blue : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: _selectedRange == range ? Colors.blue : Colors.grey.shade400,
+            width: 2,
+          ),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: _selectedRange == range ? Colors.white : Colors.black87,
+          ),
+        ),
+      ),
+    );
   }
 }
